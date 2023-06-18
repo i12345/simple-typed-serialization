@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "nodenext",
+        "outDir": "dist",
+        "rootDir": "src",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "strict": true,
+        "declaration": true,
+        "declarationMap": true,
+        "declarationDir": "dist/types",
+        "target": "ES2020",
+        "lib": ["ES2020", "DOM"]
+    },
+    "exclude": [
+        "node_modules",
+        "src/**/*.spec.ts"
+    ],
+    "include": ["src"]
+}
