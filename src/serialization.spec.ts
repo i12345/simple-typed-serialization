@@ -56,6 +56,58 @@ describe("Serialization can be deserialized", () => {
         }
     }
 
+    @serializableClass({ dynamicProperties: true })
+    class Obj {
+    }
+
+    @serializableClass()
+    class SubObj extends Obj {
+        constructor(properties: any) {
+            super()
+            Object.assign(this, properties)
+        }
+    }
+
+    @serializableClass()
+    class Shape {
+        @serializableProperty()
+        name: string
+
+        constructor(name: string) {
+            this.name = name
+        }
+    }
+
+    @serializableClass()
+    class Square extends Shape {
+        @serializableProperty()
+        length: number
+        
+        constructor(length: number) {
+            super("square")
+            this.length = length
+        }
+    }
+
+    @serializableClass()
+    class Triangle extends Shape {
+        @serializableProperty()
+        a: number
+        
+        @serializableProperty()
+        b: number
+
+        @serializableProperty()
+        c: number
+        
+        constructor(a: number, b: number, c: number) {
+            super("triangle")
+            this.a = a
+            this.b = b
+            this.c = c
+        }
+    }
+
     const cases: { [type: string]: any[] } = {
         "literal/undefined": [
             undefined,
@@ -181,8 +233,16 @@ describe("Serialization can be deserialized", () => {
 
             {
                 "abc": 123,
-                [456]: symB
+                [456]: symB,
+                [symA]: symC,
             },
+
+            new Obj(),
+            new SubObj({ a: 234, b: symB }),
+
+            new Square(10),
+            new Triangle(3, 4, 5),
+            new Shape("Trapezoid"),
         ]
     }
 

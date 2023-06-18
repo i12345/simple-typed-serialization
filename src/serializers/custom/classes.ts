@@ -59,7 +59,7 @@ class ClassSerializationScheme {
     ) {
         this.properties = []
         this.dynamicProperties = false
-        for (let proto = type; proto !== undefined; proto = proto.prototype) {
+        for (let proto = type; proto !== Object.getPrototypeOf(Object); proto = Object.getPrototypeOf(proto)) {
             const options = (proto === type) ? directOptions : Reflect.getOwnMetadata(serializerSpecializationKey, proto) as ClassSerializationOptions
             if (options) {
                 this.properties.push(...options.properties)
