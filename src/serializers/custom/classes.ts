@@ -313,12 +313,14 @@ export class ClassSerializer implements Serializer {
                 deserializeProperty(property, false)
             
             object = scheme.directOptions.preDeserializer!(object)
-        }
-
-        // still potentially invalid if the postDeserializer will return a different object
-        // and this object is referenced in constructing regular properties
-        if (scheme.directOptions.instantiateClass)
             context.setReference(referenceID, object)
+        }
+        else if (scheme.directOptions.instantiateClass)
+            context.setReference(referenceID, object)
+        else {
+            // There will be no reference available for this (potentially
+            // half-deserialized) object while it is still deserializing.
+        }
 
         for (const property of scheme.regularProperties)
             deserializeProperty(property)
