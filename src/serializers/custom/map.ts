@@ -2,8 +2,6 @@ import { SerializationContext } from "../../serialization.js";
 import { SingleSchemeSerializer } from "../single-scheme.js";
 
 export class MapSerializer<K = any, V = any> extends SingleSchemeSerializer<Map<K, V>> {
-    
-    
     protected canSerialize(item: Map<K, V>): boolean {
         return item instanceof Map
     }
@@ -19,12 +17,16 @@ export class MapSerializer<K = any, V = any> extends SingleSchemeSerializer<Map<
         }
     }
 
-    deserialize(schemeID: number, context: SerializationContext, referenceID: number): Map<K, V> {
+    deserialize(schemeID: number, context: SerializationContext, referenceID: number, instance?: any): Map<K, V> | undefined {
         const reader = context.reader!
 
         const size = reader.readUint32()
 
-        const map = new Map<K, V>()
+        if (instance)
+            if (!(instance instanceof Map))
+                throw new Error("instance should be a Map")
+
+        const map = (instance as Map<K, V> | undefined) ?? new Map<K, V>()
         context.addReference(referenceID, map)
 
         for (let i = 0; i < size; i++) {
@@ -33,6 +35,8 @@ export class MapSerializer<K = any, V = any> extends SingleSchemeSerializer<Map<
             map.set(key, value)
         }
 
+        if (instance)
+            return undefined
         return map
     }
 }

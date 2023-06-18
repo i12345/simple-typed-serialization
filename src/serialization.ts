@@ -58,7 +58,7 @@ export class SerializationContext {
         }
     }
 
-    deserialize<T = any>(serializer?: Serializer<T>, schemeID?: number) {
+    deserialize<T = any>(serializer?: Serializer<T>, schemeID?: number, instance?: any) {
         const reader = this.reader!
 
         schemeID ??= reader.readUint32()
@@ -73,7 +73,7 @@ export class SerializationContext {
                 return undefined
         
             const referenceID = this.newReferenceID()
-            const deserialized = serializer.deserialize(schemeID, this, referenceID)
+            const deserialized = serializer.deserialize(schemeID, this, referenceID, instance)
             this.references[referenceID] = deserialized
             return deserialized
         }
@@ -148,8 +148,18 @@ export interface Serializer<T = any> {
      * @param context the serialization context
      * @param referenceID the reference ID for the object that will be
      * deserialized, so that it can refer to itself if possible and needed
+     * @param instance the instance to fill with the deserialized value
+     * for when the instance was already made, by a constructor or somewhere
+     * else
+     * @returns the deserialized item or undefined if the item was
+     * deserialized into the instance
      */
-    deserialize(schemeID: number, context: SerializationContext, referenceID: number): T
+    deserialize(
+        schemeID: number,
+        context: SerializationContext,
+        referenceID: number,
+        instance?: any
+    ): T | undefined
 }
 
 export function isSerializer(serializer?: Serializer | any) {

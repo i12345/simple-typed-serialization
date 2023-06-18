@@ -2,13 +2,101 @@ import 'reflect-metadata'
 import { fullname } from "type-namespace"
 import { CANNOT_SERIALIZE, SerializationContext, Serializer, isSerializer } from "../../serialization.js"
 import { SimplePropertyRetriever } from "../../utils/simple-property-retriever.js"
+import { camelCase, pascalCase, snakeCase } from "change-case"
 
 export const serializerSpecializationKey = Symbol("serializer-specialization")
+
+export interface PropertyAccessor {
+    get(property: PropertyKey, target: any): any
+    set(property: PropertyKey, target: any, value: any): void
+}
+
+export class GetSetMethodPropertyAccessor implements PropertyAccessor {
+    constructor(
+        public readonly prefix: {
+            get: string
+            set: string
+        },
+        public readonly propertyProjector?: (property: string) => string
+    ) {
+    }
+
+    get(property: PropertyKey, target: any) {
+        if (typeof property !== 'string')
+            throw new Error("must use string property")
+        
+        const projectedProperty = this.propertyProjector ? this.propertyProjector(property) : property
+        
+        return target[this.prefix.get + projectedProperty]()
+    }
+
+    set(property: PropertyKey, target: any, value: any) {
+        if (typeof property !== 'string')
+            throw new Error("must use string property")
+        
+        const projectedProperty = this.propertyProjector ? this.propertyProjector(property) : property
+        
+        target[this.prefix.set + projectedProperty](value)
+    }
+}
+
+export const PropertyAccessors = {
+    default: <PropertyAccessor>{
+        get(property, target) {
+            return target[property]
+        },
+        set(property, target, value) {
+            target[property] = value
+        }
+    },
+
+    "get/set": new GetSetMethodPropertyAccessor(
+        {
+            get: "get",
+            set: "set"
+        }
+    ),
+
+    "(get/set)PascalCase": new GetSetMethodPropertyAccessor(
+        {
+            get: "get",
+            set: "set"
+        },
+        pascalCase
+    ),
+
+    "(get/set)_PascalCase": new GetSetMethodPropertyAccessor(
+        {
+            get: "get_",
+            set: "set_"
+        },
+        pascalCase
+    ),
+
+    "(get/set)_camelCase": new GetSetMethodPropertyAccessor(
+        {
+            get: "get_",
+            set: "set_"
+        },
+        camelCase
+    ),
+
+    "(get/set)_snake_case": new GetSetMethodPropertyAccessor(
+        {
+            get: "get_",
+            set: "set_"
+        },
+        snakeCase
+    ),
+}
 
 export interface PropertySpecializationOptions {
     key: PropertyKey
     include?: boolean
     customSerializer?: Serializer
+    accessor?: PropertyAccessor | keyof typeof PropertyAccessors
+    canDeserializeIntoDefaultValue?: boolean
+    mustDeserializeIntoDefaultValue?: boolean
 }
 
 export class ClassSerializationOptions<
@@ -62,7 +150,12 @@ class ClassSerializationScheme {
         for (let proto = type; proto !== Object.getPrototypeOf(Object); proto = Object.getPrototypeOf(proto)) {
             const options = (proto === type) ? directOptions : Reflect.getOwnMetadata(serializerSpecializationKey, proto) as ClassSerializationOptions
             if (options) {
-                this.properties.push(...options.properties)
+                for (const newProperty of options.properties) {
+                    const index = this.properties.findIndex(oldProperty => oldProperty.key === newProperty.key)
+                    if (index !== -1)
+                        this.properties.splice(index, 1)
+                    this.properties.push(newProperty)
+                }
                 this.dynamicProperties ||= options.dynamicProperties
             }
         }
@@ -171,7 +264,13 @@ export class ClassSerializer implements Serializer {
             if (property.include === false)
                 continue
             
-            const value = item[property.key]
+            const accessor = (
+                (property.accessor as keyof typeof PropertyAccessors in PropertyAccessors) ?
+                    PropertyAccessors[property.accessor as keyof typeof PropertyAccessors] :
+                    (property.accessor as PropertyAccessor ?? PropertyAccessors.default)
+            )
+
+            const value = accessor.get(property.key, item)
 
             if (property.customSerializer) {
                 const customSchemeID = property.customSerializer.serializationSchemeID(value)
@@ -194,13 +293,15 @@ export class ClassSerializer implements Serializer {
         }
     }
 
-    deserialize(schemeID: number, context: SerializationContext, referenceID: number) {
+    deserialize(schemeID: number, context: SerializationContext, referenceID: number, instance?: any) {
         const reader = context.reader!
         const scheme = this.schemes.get(schemeID)!
 
-        let object = scheme.directOptions.instantiateClass ?
-            new (scheme.type as { new(): any })() :
-            {}
+        let object = instance ?? (
+            scheme.directOptions.instantiateClass ?
+                new (scheme.type as { new(): any })() :
+                {}
+        )
 
         if (scheme.directOptions.instantiateClass)
             context.addReference(referenceID, object)
@@ -209,7 +310,21 @@ export class ClassSerializer implements Serializer {
             if (property.include === false)
                 continue
             
-            object[property.key] = context.deserialize(property.customSerializer)
+            const accessor = (
+                (property.accessor as keyof typeof PropertyAccessors in PropertyAccessors) ?
+                    PropertyAccessors[property.accessor as keyof typeof PropertyAccessors] :
+                    (property.accessor as PropertyAccessor ?? PropertyAccessors.default)
+            )
+            
+            const canDeserializeIntoDefaultValue = property.canDeserializeIntoDefaultValue ?? true
+            const mustDeserializeIntoDefaultValue = property.mustDeserializeIntoDefaultValue ?? false
+
+            const defaultValue = canDeserializeIntoDefaultValue ? accessor.get(property.key, object) : undefined
+            const value = context.deserialize(property.customSerializer, undefined, defaultValue)
+            const didDeserializeIntoDefaultValue = (value === undefined)
+            
+            if (!mustDeserializeIntoDefaultValue && !didDeserializeIntoDefaultValue)
+                accessor.set(property.key, object, value)
         }
 
         if (scheme.dynamicProperties) {
@@ -222,8 +337,12 @@ export class ClassSerializer implements Serializer {
         }
 
         if (scheme.directOptions.postDeserializer)
-            return scheme.directOptions.postDeserializer(object)
-        else return object
+            object = scheme.directOptions.postDeserializer(object)
+        
+        if (instance !== undefined)
+            return undefined
+        else
+            return object
     }
 }
 
@@ -319,11 +438,51 @@ export function serializableClass(options?: SerializableClassDecoratorOptions): 
 export interface SerializablePropertyDecoratorOptions {
     customSerializer?: Serializer
     include?: boolean
+    accessor?: PropertySpecializationOptions["accessor"]
+    canDeserializingIntoDefaultValue?: boolean
+    mustDeserializingIntoDefaultValue?: boolean
 }
 
 // function isSerializablePropertyOptions(options?: PropertySpecializationOptions | any) {
 //     return options && ['customSerializer', 'include'].some(key => key in options)
 // }
+
+export interface SerializablePropertyMethodDecoratorOptions extends SerializablePropertyDecoratorOptions {
+    /**
+     * Used for `get_` and `set_` property methods
+     */
+    casing?: "camelCase" | "PascalCase" | "snake_case"
+}
+
+export function serializablePropertyMethod(customSerializerOrOptions?: Serializer | SerializablePropertyDecoratorOptions): MethodDecorator {
+    return (target, key) => {
+        const propertyOptions: SerializablePropertyMethodDecoratorOptions = (
+            customSerializerOrOptions ? (
+                'serialize' in customSerializerOrOptions ? {
+                    customSerializer: customSerializerOrOptions,
+                } : customSerializerOrOptions
+            ) : {}
+        )
+
+        if (typeof key === 'string') {
+            if (key.startsWith("get_") || key.startsWith("set_")) {
+                propertyOptions.accessor ??= `(get/set)_${propertyOptions.casing ?? "snake_case"}`
+                key = key.substring("get_".length)
+            }
+            else if (key.startsWith("get") || key.startsWith("set")) {
+                propertyOptions.accessor ??= "get/set"
+                key = key.substring("get".length)
+            }
+        }
+        
+        const type = target.constructor
+        const options = serializationOptions(type)
+        options.properties.push({
+            key: key,
+            ...propertyOptions
+        })
+    }
+}
 
 export function serializableProperty(customSerializerOrOptions?: Serializer | SerializablePropertyDecoratorOptions): PropertyDecorator {
     const propertyOptions: SerializablePropertyDecoratorOptions = (

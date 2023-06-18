@@ -29,5 +29,5 @@ export abstract class SingleSchemeSerializer<T> implements Serializer<T> {
 
     abstract serialize(item: T, schemeID: number, context: SerializationContext): void
 
-    abstract deserialize(schemeID: number, context: SerializationContext, referenceID: number): T
+    abstract deserialize(schemeID: number, context: SerializationContext, referenceID: number, instance?: any): T | undefined
 }

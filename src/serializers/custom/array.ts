@@ -14,15 +14,26 @@ export class ArraySerializer<T = any> extends SingleSchemeSerializer<T[]> {
             context.serialize(item[i])
     }
 
-    deserialize(schemeID: number, context: SerializationContext, referenceID: number): T[] {
+    deserialize(schemeID: number, context: SerializationContext, referenceID: number, instance?: T[]): T[] | undefined {
         const reader = context.reader!
+    
+        const length = reader.readUint32()
 
-        const result = new Array(reader.readUint32())
+        if (instance) {
+            if (!Array.isArray(instance))
+                throw new Error("Must deserialize into an array")
+            // else if (instance.length !== length)
+            //     throw new Error(`Instance.length ${instance.length} !== deserialized length ${length}`)
+        }
+
+        const result = instance ?? new Array(length)
         context.addReference(referenceID, result)
 
-        for (let i = 0; i < result.length; i++)
+        for (let i = 0; i < length; i++)
             result[i] = context.deserialize()
-        
+     
+        if (instance !== undefined)
+            return undefined
         return result
     }
 }

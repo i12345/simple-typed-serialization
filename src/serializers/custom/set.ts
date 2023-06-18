@@ -14,17 +14,23 @@ export class SetSerializer<T> extends SingleSchemeSerializer<Set<T>> {
             context.serialize(value)
     }
 
-    deserialize(schemeID: number, context: SerializationContext, referenceID: number): Set<T> {
+    deserialize(schemeID: number, context: SerializationContext, referenceID: number, instance?: any): Set<T> | undefined {
         const reader = context.reader!
         
         const size = reader.readUint32()
         
-        const result = new Set<T>()
+        if (instance)
+            if (!(instance instanceof Set))
+                throw new Error("instance should be a Set")
+
+        const result = (instance as Set<T> | undefined) ?? new Set<T>()
         context.addReference(referenceID, result)
 
         for (let i = 0; i < size; i++)
             result.add(context.deserialize())
         
+        if (instance)
+            return undefined
         return result
     }
 }

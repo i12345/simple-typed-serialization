@@ -1,7 +1,7 @@
 import { describe, it } from "mocha"
 import { assert } from "chai"
 import { DataViewByteReader, DataViewByteWriterChunkedDynamic } from "byte-rw"
-import { serializableClass, serializableProperty, serializableSymbol, defaultDeserializationContext, defaultSerializationContext } from "./index.js"
+import { serializableClass, serializableProperty, serializableSymbol, defaultDeserializationContext, defaultSerializationContext, serializablePropertyMethod } from "./index.js"
 
 describe("Serialization can be deserialized", () => {
     function serialize(value: any) {
@@ -79,13 +79,21 @@ describe("Serialization can be deserialized", () => {
     }
 
     @serializableClass()
-    class Square extends Shape {
+    class Rhombus extends Shape {
         @serializableProperty()
         length: number
         
         constructor(length: number) {
-            super("square")
+            super("rhombus")
             this.length = length
+        }
+    }
+
+    @serializableClass()
+    class Square extends Rhombus {
+        constructor(length: number) {
+            super(length)
+            this.name = "square"
         }
     }
 
@@ -105,6 +113,20 @@ describe("Serialization can be deserialized", () => {
             this.a = a
             this.b = b
             this.c = c
+        }
+    }
+
+    @serializableClass()
+    class PointSet {
+        #points = new Set<[number, number]>()
+
+        @serializablePropertyMethod()
+        getPoints() {
+            return this.#points
+        }
+
+        constructor(points?: [number, number][]) {
+            points?.forEach(point => this.#points.add(point))
         }
     }
 
@@ -243,6 +265,8 @@ describe("Serialization can be deserialized", () => {
             new Square(10),
             new Triangle(3, 4, 5),
             new Shape("Trapezoid"),
+            new Rhombus(5),
+            new PointSet([[0, 3], [5, 3], [6, 7], [2, 3]])
         ]
     }
 

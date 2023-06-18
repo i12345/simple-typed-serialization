@@ -13,10 +13,14 @@ export class ArrayBufferSerializer extends SingleSchemeSerializer<ArrayBufferLik
         writer.writeBytes(bytes)
     }
 
-    deserialize(schemeID: number, context: SerializationContext): ArrayBufferLike {
+    deserialize(schemeID: number, context: SerializationContext, referenceID: number, instance?: any): ArrayBufferLike {
         const reader = context.reader!
         const length = reader.readUint32()
-        const bytes = new Uint8Array(length)
+        if (instance && !(instance instanceof ArrayBuffer || instance instanceof SharedArrayBuffer))
+            throw new Error("instance should be an ArrayBufferLike")
+        if (instance && (instance as ArrayBufferLike).byteLength !== length)
+            throw new Error(`instance length ${instance.byteLength} does not match expected length ${length}`)
+        const bytes = new Uint8Array(instance ?? length)
         reader.readBytes(bytes)
         return bytes.buffer
     }
