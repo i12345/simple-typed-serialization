@@ -435,13 +435,7 @@ export function serializableClass(options?: SerializableClassDecoratorOptions): 
 // so custom serializers can be made per property
 // https://www.typescriptlang.org/docs/handbook/decorators.html#metadata
 
-export interface SerializablePropertyDecoratorOptions {
-    customSerializer?: Serializer
-    include?: boolean
-    accessor?: PropertySpecializationOptions["accessor"]
-    canDeserializingIntoDefaultValue?: boolean
-    mustDeserializingIntoDefaultValue?: boolean
-}
+export type SerializablePropertyDecoratorOptions = Omit<PropertySpecializationOptions, "key">
 
 // function isSerializablePropertyOptions(options?: PropertySpecializationOptions | any) {
 //     return options && ['customSerializer', 'include'].some(key => key in options)
