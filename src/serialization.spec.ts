@@ -130,6 +130,51 @@ describe("Serialization can be deserialized", () => {
         }
     }
 
+    @serializableClass()
+    class Transform {
+        #m: [number, number, number, number, number, number] = [1, 0, 0, 1, 0, 0]
+
+        @serializablePropertyMethod()
+        getPosition() {
+            return [this.#m[4], this.#m[5]]
+        }
+
+        setPosition([x, y]: [number, number]) {
+            this.#m[4] = x
+            this.#m[5] = y
+            return this
+        }
+
+        @serializablePropertyMethod()
+        getRotation() {
+            return Math.atan2(this.#m[2], this.#m[0])
+        }
+
+        setRotation(angle: number) {
+            const cos = Math.cos(angle)
+            const sin = Math.sin(angle)
+            this.#m[0] = cos
+            this.#m[1] = -sin
+            this.#m[2] = sin
+            this.#m[3] = cos
+            return this
+        }
+
+        @serializablePropertyMethod()
+        get_scale() {
+            return Math.sqrt((this.#m[0] ** 2) + (this.#m[2] ** 2))
+        }
+
+        set_scale(scale: number) {
+            this.setRotation(this.getRotation())
+            this.#m[0] *= scale
+            this.#m[1] *= scale
+            this.#m[2] *= scale
+            this.#m[3] *= scale
+            return this
+        }
+    }
+
     const cases: { [type: string]: any[] } = {
         "literal/undefined": [
             undefined,
@@ -266,7 +311,13 @@ describe("Serialization can be deserialized", () => {
             new Triangle(3, 4, 5),
             new Shape("Trapezoid"),
             new Rhombus(5),
-            new PointSet([[0, 3], [5, 3], [6, 7], [2, 3]])
+            new PointSet([[0, 3], [5, 3], [6, 7], [2, 3]]),
+
+            new Transform(),
+            new Transform().setPosition([2, 4]),
+            new Transform().setPosition([2, 4]).setRotation(Math.PI / 2),
+            new Transform().setPosition([2, 4]).setRotation(Math.PI / 4),
+            new Transform().setPosition([2, 4]).setRotation(Math.PI / 4).set_scale(10),
         ]
     }
 
