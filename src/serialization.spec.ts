@@ -1,7 +1,7 @@
 import { describe, it } from "mocha"
 import { assert } from "chai"
 import { DataViewByteReader, DataViewByteWriterChunkedDynamic } from "byte-rw"
-import { serializableClass, serializableProperty, serializableSymbol, defaultDeserializationContext, defaultSerializationContext, serializablePropertyMethod } from "./index.js"
+import { serializableClass, serializableProperty, serializableSymbol, defaultDeserializationContext, defaultSerializationContext, serializablePropertyMethod, serializableClassDeclaration } from "./index.js"
 
 describe("Serialization can be deserialized", () => {
     function serialize(value: any) {
@@ -175,6 +175,27 @@ describe("Serialization can be deserialized", () => {
         }
     }
 
+    class RegularObj {
+        abc: string = "abc"
+        #def = new Set<string>()
+        ijk: -1 = -1
+
+        getDef() {
+            return this.#def
+        }
+
+        static instance() {
+            const obj = new this()
+            obj.getDef().add("item1")
+            obj.getDef().add("item2")
+            obj.getDef().add("item3")
+            
+            return obj
+        }
+    }
+    serializablePropertyMethod()(RegularObj, "def", undefined!)
+    serializableClassDeclaration(RegularObj, "abc", "ijk")
+
     const cases: { [type: string]: any[] } = {
         "literal/undefined": [
             undefined,
@@ -318,6 +339,8 @@ describe("Serialization can be deserialized", () => {
             new Transform().setPosition([2, 4]).setRotation(Math.PI / 2),
             new Transform().setPosition([2, 4]).setRotation(Math.PI / 4),
             new Transform().setPosition([2, 4]).setRotation(Math.PI / 4).set_scale(10),
+
+            RegularObj.instance(),
         ]
     }
 

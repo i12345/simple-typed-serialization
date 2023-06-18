@@ -1,6 +1,6 @@
 {
   "name": "simple-typed-serialization",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Simple, low-configuration system for serializing and deserializing javascript objects with types",
   "types": "dist/types/index.d.ts",
   "main": "dist/index.js",

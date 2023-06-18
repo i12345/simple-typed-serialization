@@ -530,3 +530,27 @@ export function serializableProperty(customSerializerOrOptions?: Serializer | Se
 //     else
 //         serializableClass()(target as Function)
 // }
+
+export function serializableClassDeclarationCustom<T>(
+        target: Function,
+        classOptions: SerializableClassDecoratorOptions | undefined,
+        ...properties: ((keyof T) | PropertySpecializationOptions)[]
+    ) {
+    for (const property of properties) {
+        if (typeof property === "string" || typeof property === "symbol")
+            serializableProperty()(target, property)
+        else {
+            const options = property as PropertySpecializationOptions
+            serializableProperty(options)(target, options.key as (string | symbol))
+        }
+    }
+
+    serializableClass(classOptions)(target)
+}
+
+export function serializableClassDeclaration<T>(
+        target: Function & { new(): T },
+        ...properties: ((keyof T) | PropertySpecializationOptions)[]
+    ) {
+    serializableClassDeclarationCustom(target, undefined, ...properties)
+}
