@@ -1,7 +1,7 @@
 import { describe, it } from "mocha"
 import { assert } from "chai"
 import { DataViewByteReader, DataViewByteWriterChunkedDynamic } from "byte-rw"
-import { serializableClass, serializableProperty, serializableSymbol, defaultDeserializationContext, defaultSerializationContext, serializablePropertyMethod, serializableClassDeclaration } from "./index.js"
+import { serializableClass, serializableProperty, serializableSymbol, defaultDeserializationContext, defaultSerializationContext, serializablePropertyMethod, serializableClassDeclaration, preDeserializer } from "./index.js"
 
 describe("Serialization can be deserialized", () => {
     function serialize(value: any) {
@@ -196,6 +196,25 @@ describe("Serialization can be deserialized", () => {
     serializablePropertyMethod()(RegularObj, "def", undefined!)
     serializableClassDeclaration(RegularObj, "abc", "ijk")
 
+    @serializableClass()
+    class ConnectedObject {
+        #document: Document
+
+        @serializablePropertyMethod({ preDeserialize: true })
+        getDocument() {
+            return this.#document
+        }
+
+        constructor(document: Document) {
+            this.#document = document
+        }
+
+        @preDeserializer
+        static instantiate(serialized: { Document: Document }) {
+            return new ConnectedObject(serialized.Document)
+        }
+    }
+
     const cases: { [type: string]: any[] } = {
         "literal/undefined": [
             undefined,
@@ -341,6 +360,18 @@ describe("Serialization can be deserialized", () => {
             new Transform().setPosition([2, 4]).setRotation(Math.PI / 4).set_scale(10),
 
             RegularObj.instance(),
+
+            new ConnectedObject(new Document("ABC", "the alphabet is a set of ...")),
+            new ConnectedObject(
+                Object.assign(
+                    new Document("TypeScript", "Lorem ipsum..."), {
+                        related: [
+                            new Document("JavaScript", "JavaScript is a programming language..."),
+                            new Document("Typed languages", "Static type checking..."),
+                        ]
+                    }
+                )
+            ),
         ]
     }
 

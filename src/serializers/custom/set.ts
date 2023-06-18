@@ -24,7 +24,7 @@ export class SetSerializer<T> extends SingleSchemeSerializer<Set<T>> {
                 throw new Error("instance should be a Set")
 
         const result = (instance as Set<T> | undefined) ?? new Set<T>()
-        context.addReference(referenceID, result)
+        context.setReference(referenceID, result)
 
         for (let i = 0; i < size; i++)
             result.add(context.deserialize())

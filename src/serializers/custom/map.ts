@@ -27,7 +27,7 @@ export class MapSerializer<K = any, V = any> extends SingleSchemeSerializer<Map<
                 throw new Error("instance should be a Map")
 
         const map = (instance as Map<K, V> | undefined) ?? new Map<K, V>()
-        context.addReference(referenceID, map)
+        context.setReference(referenceID, map)
 
         for (let i = 0; i < size; i++) {
             const key = context.deserialize()

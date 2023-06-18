@@ -94,7 +94,7 @@ export class SerializationContext {
         return this.references.push(undefined) - 1
     }
 
-    addReference(referenceID: number, object: any) {
+    setReference(referenceID: number, object: any) {
         this.references[referenceID] = object
     }
 }

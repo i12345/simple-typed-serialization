@@ -27,7 +27,7 @@ export class ArraySerializer<T = any> extends SingleSchemeSerializer<T[]> {
         }
 
         const result = instance ?? new Array(length)
-        context.addReference(referenceID, result)
+        context.setReference(referenceID, result)
 
         for (let i = 0; i < length; i++)
             result[i] = context.deserialize()
