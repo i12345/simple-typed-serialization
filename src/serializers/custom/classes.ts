@@ -77,6 +77,7 @@ export class ClassSerializationOptions<
     dynamicProperties: boolean = false
 
     instantiateClass: boolean = true
+    useInstanceOverPreDeserializer?: boolean = true
     preSerializer?: (item: T) => SerializedForm
     preDeserializer?: (item?: Partial<SerializedForm>) => SerializedForm
     postDeserializer?: (serialized: SerializedForm) => T
@@ -279,11 +280,26 @@ export class ClassSerializer implements Serializer {
         const reader = context.reader!
         const scheme = this.schemes.get(schemeID)!
 
-        let object = scheme.directOptions.preDeserializer ? {} : (
-            instance ?? (
-                scheme.directOptions.instantiateClass ?
-                    new (scheme.type as { new(): any })() :
-                    {}
+        const useInstanceOverPreDeserializer = scheme.directOptions.useInstanceOverPreDeserializer ?? true
+
+        let object = (useInstanceOverPreDeserializer ?
+            (
+                instance ?? (
+                    scheme.directOptions.preDeserializer ? {} : (
+                        scheme.directOptions.instantiateClass ?
+                            new (scheme.type as { new(): any })() :
+                            {}
+                    )
+                )
+            ) :
+            (
+                scheme.directOptions.preDeserializer ? {} : (
+                    instance ?? (
+                        scheme.directOptions.instantiateClass ?
+                            new (scheme.type as { new(): any })() :
+                            {}
+                    )
+                )
             )
         )
         
@@ -308,22 +324,30 @@ export class ClassSerializer implements Serializer {
                 accessor.set(property.key, object, value)
         }
         
-        if (scheme.preDeserializeProperties) {
-            for (const property of scheme.preDeserializeProperties)
-                deserializeProperty(property, false)
+        if (object === instance) {
+            for (const property of scheme.properties)
+                deserializeProperty(property)
             
-            object = scheme.directOptions.preDeserializer!(object)
             context.setReference(referenceID, object)
         }
-        else if (scheme.directOptions.instantiateClass)
-            context.setReference(referenceID, object)
         else {
-            // There will be no reference available for this (potentially
-            // half-deserialized) object while it is still deserializing.
-        }
+            if (scheme.preDeserializeProperties) {
+                for (const property of scheme.preDeserializeProperties)
+                    deserializeProperty(property, false)
+            
+                object = scheme.directOptions.preDeserializer!(object)
+                context.setReference(referenceID, object)
+            }
+            else if (scheme.directOptions.instantiateClass)
+                context.setReference(referenceID, object)
+            else {
+                // There will be no reference available for this (potentially
+                // half-deserialized) object while it is still deserializing.
+            }
 
-        for (const property of scheme.regularProperties)
-            deserializeProperty(property)
+            for (const property of scheme.regularProperties)
+                deserializeProperty(property)
+        }
 
         if (scheme.dynamicProperties) {
             const dynamicPropertyCount = reader.readUint16()
