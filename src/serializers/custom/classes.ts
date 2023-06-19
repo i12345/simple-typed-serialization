@@ -77,6 +77,7 @@ export class ClassSerializationOptions<
     dynamicProperties: boolean = false
 
     instantiateClass: boolean = true
+    requiresExistingInstance: boolean = false
     useInstanceOverPreDeserializer?: boolean = true
     preSerializer?: (item: T) => SerializedForm
     preDeserializer?: (item?: Partial<SerializedForm>) => SerializedForm
@@ -282,6 +283,10 @@ export class ClassSerializer implements Serializer {
 
         const useInstanceOverPreDeserializer = scheme.directOptions.useInstanceOverPreDeserializer ?? true
 
+        if (scheme.directOptions.requiresExistingInstance ?? false)
+            if (instance === undefined)
+                throw new Error(`Scheme for ${fullname(scheme.type)} requires an instance to deserialize into`)
+
         let object = (useInstanceOverPreDeserializer ?
             (
                 instance ?? (
@@ -389,6 +394,7 @@ export interface SerializableClassDecoratorOptions {
     preDeserializer?: ((item: any) => any) | PropertyKey
     postDeserializer?: ((item: any) => any) | PropertyKey
     instantiateClass?: boolean
+    requiresExistingInstance?: boolean
 }
 
 // function isSerializableClassOptions(options?: SerializableClassDecoratorOptions | any) {
@@ -434,6 +440,7 @@ export function serializableClass(options?: SerializableClassDecoratorOptions): 
 
     return target => {
         const options = serializationOptions(target)
+        options.requiresExistingInstance = classOptions.requiresExistingInstance ?? false
         options.dynamicProperties = classOptions.dynamicProperties ?? false
         if (classOptions.instantiateClass !== undefined)
             options.instantiateClass = classOptions.instantiateClass
