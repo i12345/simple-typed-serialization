@@ -391,10 +391,11 @@ export function serializationOptions(target: Function) {
 export interface SerializableClassDecoratorOptions {
     dynamicProperties?: boolean
     preSerializer?: ((item: any) => any) | PropertyKey
-    preDeserializer?: ((item: any) => any) | PropertyKey
-    postDeserializer?: ((item: any) => any) | PropertyKey
+    preDeserializer?: ((preDeserialized: any) => any) | PropertyKey
+    postDeserializer?: ((deserialized: any) => any) | PropertyKey
     instantiateClass?: boolean
     requiresExistingInstance?: boolean
+    useInstanceOverPreDeSerializer?: boolean
 }
 
 // function isSerializableClassOptions(options?: SerializableClassDecoratorOptions | any) {
@@ -440,6 +441,7 @@ export function serializableClass(options?: SerializableClassDecoratorOptions): 
 
     return target => {
         const options = serializationOptions(target)
+        options.useInstanceOverPreDeserializer = classOptions.useInstanceOverPreDeSerializer
         options.requiresExistingInstance = classOptions.requiresExistingInstance ?? false
         options.dynamicProperties = classOptions.dynamicProperties ?? false
         if (classOptions.instantiateClass !== undefined)
