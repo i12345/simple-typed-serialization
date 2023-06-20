@@ -41,7 +41,7 @@ describe("class decorators", () => {
             a: "abc: T",
             b: 123
         }
-        const serialized_actual = options.preSerializer!(new cls())
+        const serialized_actual = options.preSerializer!(new cls(), undefined!)
 
         assert.deepEqual(serialized_actual, serialized_expected)
     }
@@ -64,7 +64,7 @@ describe("class decorators", () => {
             b: 123,
             c: true
         }
-        const deserialized_actual = options.postDeserializer!(serialized)
+        const deserialized_actual = options.postDeserializer!(serialized, undefined!)
 
         assert.deepEqual(deserialized_actual, deserialized_expected)
         assert.isTrue(deserialized_actual instanceof cls)

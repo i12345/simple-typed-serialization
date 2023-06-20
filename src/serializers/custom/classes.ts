@@ -70,18 +70,22 @@ export interface PropertySpecializationOptions {
     preDeserialize?: boolean
 }
 
+export type PreSerializer<T, Serialized> = (item: T, context: SerializationContext) => Serialized
+export type PreDeserializer<Serialized> = (preDeserialized: Partial<Serialized>, context: SerializationContext) => Partial<Serialized>
+export type PostDeserializer<T, Serialized> = (deserialized: Serialized, context: SerializationContext) => T
+
 export class ClassSerializationOptions<
         T = any,
-        SerializedForm = T
+        Serialized = T
     > {
     dynamicProperties: boolean = false
 
     instantiateClass: boolean = true
     requiresExistingInstance: boolean = false
     useInstanceOverPreDeserializer?: boolean = true
-    preSerializer?: (item: T) => SerializedForm
-    preDeserializer?: (item?: Partial<SerializedForm>) => SerializedForm
-    postDeserializer?: (serialized: SerializedForm) => T
+    preSerializer?: PreSerializer<T, Serialized>
+    preDeserializer?: PreDeserializer<Serialized>
+    postDeserializer?: PostDeserializer<T, Serialized>
 
     constructor(
         public readonly type: Function,
@@ -237,7 +241,7 @@ export class ClassSerializer implements Serializer {
         const scheme = this.schemes.get(schemeID)!
 
         if (scheme.directOptions.preSerializer)
-            item = scheme.directOptions.preSerializer(item)
+            item = scheme.directOptions.preSerializer(item, context)
         
         const propertiesReviewed = new Set<PropertyKey>()
         
@@ -340,7 +344,7 @@ export class ClassSerializer implements Serializer {
                 for (const property of scheme.preDeserializeProperties)
                     deserializeProperty(property, false)
             
-                object = scheme.directOptions.preDeserializer!(object)
+                object = scheme.directOptions.preDeserializer!(object, context)
                 context.setReference(referenceID, object)
             }
             else if (scheme.directOptions.instantiateClass)
@@ -364,8 +368,7 @@ export class ClassSerializer implements Serializer {
         }
 
         if (scheme.directOptions.postDeserializer)
-            object = scheme.directOptions.postDeserializer(object)
-        context.setReference(referenceID, object)
+            object = scheme.directOptions.postDeserializer(object, context)
         
         if (instance !== undefined && object === instance)
             return undefined
@@ -390,9 +393,9 @@ export function serializationOptions(target: Function) {
 
 export interface SerializableClassDecoratorOptions {
     dynamicProperties?: boolean
-    preSerializer?: ((item: any) => any) | PropertyKey
-    preDeserializer?: ((preDeserialized: any) => any) | PropertyKey
-    postDeserializer?: ((deserialized: any) => any) | PropertyKey
+    preSerializer?: PreSerializer<any, any> | PropertyKey
+    preDeserializer?: PreDeserializer<any> | PropertyKey
+    postDeserializer?: PostDeserializer<any, any> | PropertyKey
     instantiateClass?: boolean
     requiresExistingInstance?: boolean
     useInstanceOverPreDeSerializer?: boolean
@@ -409,8 +412,8 @@ export const preSerializer: MethodDecorator = (target, key) => {
     const options = serializationOptions(type)
     options.preSerializer = (isStatic ?
         method :
-        item => method.call(item)
-    ) as (item: any) => any
+        (item, context) => method.call(item, context)
+    ) as PreDeserializer<any>
 }
 
 export const preDeserializer: MethodDecorator = (target, key) => {
@@ -420,7 +423,7 @@ export const preDeserializer: MethodDecorator = (target, key) => {
     const method = (target as any)[key] as Function
     const type = target as Function
     const options = serializationOptions(type)
-    options.preDeserializer = method as (item: any) => any
+    options.preDeserializer = method as PreDeserializer<any>
     options.instantiateClass = false
 }
 
@@ -431,8 +434,8 @@ export const postDeserializer: MethodDecorator = (target, key) => {
     const options = serializationOptions(type)
     options.postDeserializer = (isStatic ?
         method :
-        item => (method.call(item), item)
-    ) as (item: any) => any
+        (deserialized, context) => method.call(deserialized, context) ?? deserialized
+    ) as PostDeserializer<any, any>
     options.instantiateClass ??= !isStatic
 }
 
@@ -454,7 +457,7 @@ export function serializableClass(options?: SerializableClassDecoratorOptions): 
                         classOptions.preSerializer in target ?
                             (target as any)[classOptions.preSerializer] :
                             classOptions.preSerializer in target.prototype ?
-                                (item) => ((item as any)[classOptions.preSerializer as PropertyKey] as () => any)() :
+                                (item, context) => ((item as any)[classOptions.preSerializer as PropertyKey] as (context: SerializationContext) => any)(context) :
                                 undefined
                     )
             ) : undefined
@@ -475,8 +478,8 @@ export function serializableClass(options?: SerializableClassDecoratorOptions): 
                         classOptions.postDeserializer in target ?
                             (target as any)[classOptions.postDeserializer] :
                             classOptions.postDeserializer in target.prototype ?
-                                (item) => {
-                                    ((item as any)[classOptions.postDeserializer as PropertyKey] as () => any)()
+                                (item, context) => {
+                                    ((item as any)[classOptions.postDeserializer as PropertyKey] as (context: SerializationContext) => any)(context)
                                     return item
                                 } :
                                 undefined
