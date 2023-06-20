@@ -74,7 +74,7 @@ export class SerializationContext {
         
             const referenceID = this.newReferenceID()
             const deserialized = serializer.deserialize(schemeID, this, referenceID, instance)
-            this.references[referenceID] = deserialized
+            this.setReference(referenceID, deserialized ?? instance)
             return deserialized
         }
     }
@@ -90,7 +90,7 @@ export class SerializationContext {
         this.schemeIDs_serializers.set(schemeID, serializer)
     }
 
-    newReferenceID() {
+    private newReferenceID() {
         return this.references.push(undefined) - 1
     }
 
