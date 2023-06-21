@@ -73,6 +73,7 @@ export class SerializationContext {
                 return undefined
         
             const referenceID = this.newReferenceID()
+            this.setReference(referenceID, instance)
             const deserialized = serializer.deserialize(schemeID, this, referenceID, instance)
             this.setReference(referenceID, deserialized ?? instance)
             return deserialized
